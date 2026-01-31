@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lotte Cinema Hidden Stock Hunter</title>
+    <style>
+      body {
+        font-family: "Noto Sans KR", sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #e50020;
+        text-align: center;
+      } /* 롯데 레드 컬러 */
+      .controls {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 20px;
+        background: #eee;
+        padding: 15px;
+        border-radius: 10px;
+      }
+      input {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        width: 100px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #e50020;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:hover {
+        background: #b00018;
+      }
+      button:disabled {
+        background: #ccc;
+      }
+
+      .result-card {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        background: #fff;
+      }
+      .result-header {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+      }
+      .badge {
+        background: #e50020;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        margin-left: 5px;
+      }
+      .stock-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .cinema-item {
+        background: #f9f9f9;
+        padding: 5px 10px;
+        border-radius: 5px;
+        border: 1px solid #eee;
+        font-size: 0.9em;
+      }
+      .cinema-item strong {
+        color: #e50020;
+      }
+      #log {
+        margin-top: 20px;
+        text-align: center;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🕵️‍♂️ 롯데시네마 특전 수량</h1>
+
+      <div class="controls">
+        <div>
+          <label>기준 GiftID</label>
+          <input type="number" id="baseGiftID" value="13900" />
+        </div>
+        <div>
+          <label>탐색 범위 (±)</label>
+          <input type="number" id="range" value="150" />
+        </div>
+        <button id="scanBtn" onclick="startScan()">스캔 시작</button>
+      </div>
+
+      <div id="log">설정값을 입력하고 스캔을 시작하세요.</div>
+      <div id="results"></div>
+    </div>
+
+    <script>
+      async function startScan() {
+        const baseGiftID = document.getElementById("baseGiftID").value;
+        const range = document.getElementById("range").value;
+        const btn = document.getElementById("scanBtn");
+        const log = document.getElementById("log");
+        const resultDiv = document.getElementById("results");
+
+        // UI 초기화
+        btn.disabled = true;
+        btn.innerText = "탐색 중... (오래 걸립니다)";
+        log.innerText =
+          "🔍 서버에서 데이터를 샅샅이 뒤지는 중입니다... 잠시만 기다려주세요.";
+        resultDiv.innerHTML = "";
+
+        try {
+          // 백엔드로 요청 보내기
+          const response = await fetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ baseGiftID, range }),
+          });
+
+          const data = await response.json();
+
+          btn.disabled = false;
+          btn.innerText = "스캔 시작";
+
+          if (data.results.length === 0) {
+            log.innerText = `💨 총 ${data.scannedEventCount}개의 이벤트를 확인했으나, 설정된 범위 내에서 히든 특전을 찾지 못했습니다.`;
+            return;
+          }
+
+          log.innerText = `🎉 총 ${data.results.length}개의 숨겨진 특전 데이터를 찾았습니다!`;
+
+          // 결과 화면에 뿌리기
+          data.results.forEach((item) => {
+            const card = document.createElement("div");
+            card.className = "result-card";
+
+            let stockHtml = "";
+            if (item.stockData.length === 0) {
+              stockHtml = '<span style="color:#aaa">전 지점 품절 ㅠㅠ</span>';
+            } else {
+              item.stockData.forEach((cinema) => {
+                stockHtml += `<div class="cinema-item">${cinema.CinemaNameKR}: <strong>${cinema.Cnt}개</strong></div>`;
+              });
+            }
+
+            card.innerHTML = `
+                        <div class="result-header">
+                            ${item.eventName} 
+                            <span class="badge">ID: ${item.foundGiftID}</span>
+                        </div>
+                        <div class="stock-list">${stockHtml}</div>
+                    `;
+            resultDiv.appendChild(card);
+          });
+        } catch (err) {
+          console.error(err);
+          log.innerText = "❌ 서버 통신 중 오류가 발생했습니다.";
+          btn.disabled = false;
+          btn.innerText = "스캔 시작";
+        }
+      }
+    </script>
+  </body>
+</html>
