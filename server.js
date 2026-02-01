@@ -117,7 +117,7 @@ app.post('/api/scan', async (req, res) => {
                     eventName: event.EventName,
                     eventID: event.EventID,
                     foundGiftID: hit.giftID,
-                    stockData: hit.stock.filter(cinema => cinema.Cnt > 0)
+                    stockData: hit.stock,
                 });
             }
         }
@@ -135,3 +135,4 @@ app.post('/api/scan', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
+
