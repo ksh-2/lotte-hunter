@@ -1,186 +1,146 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lotte Cinema Hidden Stock Hunter</title>
     <style>
-      body {
-        font-family: "Noto Sans KR", sans-serif;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        background-color: #f4f4f4;
-      }
-      .container {
-        background: white;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-      }
-      h1 {
-        color: #e50020;
-        text-align: center;
-      } /* 롯데 레드 컬러 */
-      .controls {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        margin-bottom: 20px;
-        background: #eee;
-        padding: 15px;
-        border-radius: 10px;
-      }
-      input {
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        width: 100px;
-      }
-      button {
-        padding: 10px 20px;
-        background: #e50020;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      button:hover {
-        background: #b00018;
-      }
-      button:disabled {
-        background: #ccc;
-      }
+        body { font-family: 'Noto Sans KR', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f4f4; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #E50020; text-align: center; } /* 롯데 레드 컬러 */
+        
+        /* 컨트롤 패널 */
+        .controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; background: #eee; padding: 15px; border-radius: 10px; flex-wrap: wrap; }
+        .input-group { display: flex; flex-direction: column; align-items: center; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100px; text-align: center; }
+        label { font-size: 0.9em; margin-bottom: 5px; font-weight: bold; color: #555; }
+        
+        button { padding: 10px 20px; background: #E50020; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; height: 42px; align-self: flex-end; }
+        button:hover { background: #b00018; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        /* 결과 카드 스타일 */
+        .result-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        /* ID 배지 (제목 위) */
+        .id-badge-wrapper { margin-bottom: 8px; }
+        .badge { background: #333; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; display: inline-block; }
+        
+        /* 제목 */
+        .result-header { font-weight: bold; color: #222; margin-bottom: 15px; font-size: 1.2em; border-bottom: 2px solid #f4f4f4; padding-bottom: 10px; }
+        
+        /* 수량 리스트 */
+        .stock-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        
+        .cinema-item { padding: 6px 12px; border-radius: 6px; font-size: 0.95em; }
+        
+        /* 재고 있음 스타일 */
+        .cinema-item.in-stock { background-color: #fff0f2; border: 1px solid #ffccd2; color: #333; }
+        .cinema-item.in-stock strong { color: #E50020; }
+        
+        /* 소진(품절) 스타일 */
+        .cinema-item.sold-out { background-color: #f5f5f5; border: 1px solid #ddd; color: #aaa; }
+        .cinema-item.sold-out strong { color: #aaa; }
 
-      .result-card {
-        border: 1px solid #ddd;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 8px;
-        background: #fff;
-      }
-      .result-header {
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 10px;
-        font-size: 1.1em;
-      }
-      .badge {
-        background: #e50020;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 0.8em;
-        margin-left: 5px;
-      }
-      .stock-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      .cinema-item {
-        background: #f9f9f9;
-        padding: 5px 10px;
-        border-radius: 5px;
-        border: 1px solid #eee;
-        font-size: 0.9em;
-      }
-      .cinema-item strong {
-        color: #e50020;
-      }
-      #log {
-        margin-top: 20px;
-        text-align: center;
-        color: #666;
-      }
+        #log { margin-top: 20px; text-align: center; color: #666; font-size: 0.95em; }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div class="container">
-      <h1>🕵️‍♂️ 롯데시네마 특전 수량</h1>
-
-      <div class="controls">
-        <div>
-          <label>기준 GiftID</label>
-          <input type="number" id="baseGiftID" value="13900" />
+        <h1>🕵️‍♂️ 롯데시네마 특전 사냥꾼</h1>
+        
+        <div class="controls">
+            <div class="input-group">
+                <label>기준 GiftID</label>
+                <input type="number" id="baseGiftID" value="13900">
+            </div>
+            <div class="input-group">
+                <label>탐색 범위 (±)</label>
+                <input type="number" id="range" value="150">
+            </div>
+            <button id="scanBtn" onclick="startScan()">스캔 시작</button>
         </div>
-        <div>
-          <label>탐색 범위 (±)</label>
-          <input type="number" id="range" value="150" />
-        </div>
-        <button id="scanBtn" onclick="startScan()">스캔 시작</button>
-      </div>
 
-      <div id="log">설정값을 입력하고 스캔을 시작하세요.</div>
-      <div id="results"></div>
+        <div id="log">설정값을 입력하고 스캔을 시작하세요.</div>
+        <div id="results"></div>
     </div>
 
     <script>
-      async function startScan() {
-        const baseGiftID = document.getElementById("baseGiftID").value;
-        const range = document.getElementById("range").value;
-        const btn = document.getElementById("scanBtn");
-        const log = document.getElementById("log");
-        const resultDiv = document.getElementById("results");
+        async function startScan() {
+            const baseGiftID = document.getElementById('baseGiftID').value;
+            const range = document.getElementById('range').value;
+            const btn = document.getElementById('scanBtn');
+            const log = document.getElementById('log');
+            const resultDiv = document.getElementById('results');
 
-        // UI 초기화
-        btn.disabled = true;
-        btn.innerText = "탐색 중... (오래 걸립니다)";
-        log.innerText =
-          "🔍 서버에서 데이터를 샅샅이 뒤지는 중입니다... 잠시만 기다려주세요.";
-        resultDiv.innerHTML = "";
+            // UI 초기화
+            btn.disabled = true;
+            btn.innerText = "탐색 중...";
+            log.innerText = "🔍 서버에서 데이터를 샅샅이 뒤지는 중입니다... (최대 1~2분 소요)";
+            resultDiv.innerHTML = "";
 
-        try {
-          // 백엔드로 요청 보내기
-          const response = await fetch("/api/scan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ baseGiftID, range }),
-          });
+            try {
+                // 백엔드로 요청 보내기
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ baseGiftID, range })
+                });
 
-          const data = await response.json();
+                const data = await response.json();
 
-          btn.disabled = false;
-          btn.innerText = "스캔 시작";
+                btn.disabled = false;
+                btn.innerText = "스캔 시작";
+                
+                if (!data.results || data.results.length === 0) {
+                    log.innerText = `💨 총 ${data.scannedEventCount || 0}개의 이벤트를 확인했으나, 설정된 범위 내에서 히든 특전을 찾지 못했습니다.`;
+                    return;
+                }
 
-          if (data.results.length === 0) {
-            log.innerText = `💨 총 ${data.scannedEventCount}개의 이벤트를 확인했으나, 설정된 범위 내에서 히든 특전을 찾지 못했습니다.`;
-            return;
-          }
+                log.innerText = `🎉 총 ${data.results.length}개의 숨겨진 특전 데이터를 찾았습니다!`;
 
-          log.innerText = `🎉 총 ${data.results.length}개의 숨겨진 특전 데이터를 찾았습니다!`;
+                // 결과 화면에 뿌리기
+                data.results.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'result-card';
+                    
+                    let stockHtml = '';
+                    
+                    if (!item.stockData || item.stockData.length === 0) {
+                        stockHtml = '<span style="color:#aaa; padding:5px;">데이터 없음</span>';
+                    } else {
+                        item.stockData.forEach(cinema => {
+                            // 수량 0이면 '소진', 아니면 개수 표시
+                            const isSoldOut = cinema.Cnt === 0;
+                            const stockClass = isSoldOut ? 'cinema-item sold-out' : 'cinema-item in-stock';
+                            const countText = isSoldOut ? '소진' : `${cinema.Cnt}개`; // 요청하신 변경 사항
+                            
+                            stockHtml += `<div class="${stockClass}">
+                                            ${cinema.CinemaNameKR}: <strong>${countText}</strong>
+                                          </div>`;
+                        });
+                    }
 
-          // 결과 화면에 뿌리기
-          data.results.forEach((item) => {
-            const card = document.createElement("div");
-            card.className = "result-card";
-
-            let stockHtml = "";
-            if (item.stockData.length === 0) {
-              stockHtml = '<span style="color:#aaa">전 지점 품절 ㅠㅠ</span>';
-            } else {
-              item.stockData.forEach((cinema) => {
-                stockHtml += `<div class="cinema-item">${cinema.CinemaNameKR}: <strong>${cinema.Cnt}개</strong></div>`;
-              });
-            }
-
-            card.innerHTML = `
+                    // HTML 조립: ID 배지를 제목 위로 배치
+                    card.innerHTML = `
+                        <div class="id-badge-wrapper">
+                            <span class="badge">GiftID: ${item.foundGiftID}</span>
+                        </div>
                         <div class="result-header">
                             ${item.eventName} 
-                            <span class="badge">ID: ${item.foundGiftID}</span>
                         </div>
                         <div class="stock-list">${stockHtml}</div>
                     `;
-            resultDiv.appendChild(card);
-          });
-        } catch (err) {
-          console.error(err);
-          log.innerText = "❌ 서버 통신 중 오류가 발생했습니다.";
-          btn.disabled = false;
-          btn.innerText = "스캔 시작";
+                    resultDiv.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error(err);
+                log.innerText = "❌ 서버 통신 중 오류가 발생했습니다.";
+                btn.disabled = false;
+                btn.innerText = "스캔 시작";
+            }
         }
-      }
     </script>
-  </body>
+</body>
 </html>
