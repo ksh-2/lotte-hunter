@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-const TARGET_KEYWORDS = ["포스터", "특전", "아트카드", "현장", "시그니처", "무비", "증정", "T.T"];
+const TARGET_KEYWORDS = ["포스터", "특전", "아트카드", "현장", "시그니처", "무비", "증정", "T.T", "아카데미"];
 
 async function fetchEventList() {
     const paramList = {
@@ -135,4 +135,5 @@ app.post('/api/scan', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
+
 
