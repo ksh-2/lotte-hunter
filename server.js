@@ -31,7 +31,7 @@ const APP_HEADERS = {
     "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
 };
 
-const TARGET_KEYWORDS = ["포스터", "특전", "아트카드", "현장", "시그니처", "무비", "증정", "T.T", "아카데미", "Signature"];
+const TARGET_KEYWORDS = ["포스터", "특전", "아트카드", "현장", "시그니처", "무비", "증정", "T.T", "아카데미", "Signature", "프로젝트"];
 
 async function fetchEventList() {
     const paramList = {
@@ -74,17 +74,22 @@ async function fetchEventList() {
 
 app.post('/api/scan', async (req, res) => {
     const { baseGiftID, range } = req.body;
-    console.log(`📡 앱 헤더 스캔 요청: BaseID ${baseGiftID}, Range ${range}`);
+    console.log(`📡 스캔 요청 시작: BaseID ${baseGiftID}, Range ${range}`);
     
     try {
-        const events = await fetchEventList();
+        // 1. 이벤트 목록을 가져올 때 키워드 필터링을 최소화하여 
+        // '프로젝트 헤일메리' 같은 항목이 누락되지 않게 합니다.
+        const events = await fetchEventList(); 
         const results = [];
 
+        // 2. 모든 이벤트에 대해 루프를 돌며 GiftID 범위를 뒤집니다.
         for (const event of events) {
             const promises = [];
-            // 서버 부하를 줄이기 위해 범위를 너무 크게 잡지 않는 것을 추천합니다.
-            for (let i = -range; i <= range; i++) {
-                const testGiftID = (parseInt(baseGiftID) + i).toString();
+            const r = parseInt(range);
+            const b = parseInt(baseGiftID);
+
+            for (let i = -r; i <= r; i++) {
+                const testGiftID = (b + i).toString();
                 const paramList = {
                     MethodName: "GetCinemaGoods",
                     channelType: "HO",
@@ -102,14 +107,15 @@ app.post('/api/scan', async (req, res) => {
                     body: formData,
                     headers: {
                         ...formData.getHeaders(),
-                        ...APP_HEADERS,
+                        ...APP_HEADERS, // 아까 정의한 앱 헤더와 쿠키가 여기서 박힙니다.
                         Referer: `https://www.lottecinema.co.kr/NLCHS/Event/EventTemplateInfo?eventId=${event.EventID}`
                     }
                 })
                 .then(r => r.json())
                 .then(d => {
-                    // Cnt가 0보다 큰 데이터가 하나라도 있는지 확인 (앱 헤더 덕분에 이제 0이 아님)
-                    if (d.CinemaDivisionGoods && d.CinemaDivisionGoods.some(c => c.Cnt > 0)) {
+                    // [수정 핵심] Cnt가 0인 지점들도 일단 데이터가 오면 '성공'으로 간주하여 
+                    // 목록에 띄우도록 조건을 변경하거나, d.CinemaDivisionGoods가 존재하는지만 체크합니다.
+                    if (d.CinemaDivisionGoods && d.CinemaDivisionGoods.length > 0) {
                         return { giftID: testGiftID, stock: d.CinemaDivisionGoods };
                     }
                     return null;
@@ -120,24 +126,27 @@ app.post('/api/scan', async (req, res) => {
             }
 
             const eventResults = await Promise.all(promises);
-            const hit = eventResults.find(r => r !== null);
-
-            if (hit) {
-                results.push({
-                    eventName: event.EventName,
-                    eventID: event.EventID,
-                    foundGiftID: hit.giftID,
-                    stockData: hit.stock,
-                });
-            }
+            
+            // 해당 이벤트에서 유효한 GiftID 결과들을 모두 수집합니다.
+            eventResults.forEach(hit => {
+                if (hit) {
+                    results.push({
+                        eventName: event.EventName,
+                        eventID: event.EventID,
+                        foundGiftID: hit.giftID,
+                        stockData: hit.stock,
+                    });
+                }
+            });
         }
 
         res.json({
             success: true,
             scannedEventCount: events.length,
-            results: results
+            results: results // 발견된 모든 특전 리스트 반환
         });
     } catch (error) {
+        console.error("스캔 중 오류:", error);
         res.status(500).json({ success: false, message: "서버 내부 오류" });
     }
 });
