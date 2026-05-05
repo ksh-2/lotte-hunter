@@ -1,9 +1,9 @@
-/* server.js - 경로 문제 해결 버전 */
+/* server.js - 앱 전용 헤더 및 쿠키 적용 버전 */
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const FormData = require('form-data');
-const path = require('path'); // [추가] 경로를 확실하게 찾아주는 도구
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,15 +11,25 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// [핵심 수정] __dirname을 사용하여 'public' 폴더의 절대 경로를 지정
-// 이렇게 해야 리눅스 서버에서도 index.html을 정확히 찾습니다.
 const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
-// 루트 접속 시 index.html 강제 연결
 app.get('/', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
 });
+
+// [중요] 피들러로 낚은 본인의 쿠키 전체를 여기에 붙여넣으세요.
+const REAL_COOKIE = "TS019bdbd5=01337fb4698d96812bbd3c0f7ae5fd3b930eff0e4e8f65bde23c744702c7b42bce119ac0bfe19ee41dc1a9e0ede5df9efa0ea02cea";
+
+// 앱 전용 공통 헤더
+const APP_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-G986N Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/147.0.7727.111 Mobile Safari/537.36 /GA_Android LotteCinemaApp_Android",
+    "x-requested-with": "kr.co.lottecinema.lcm",
+    "Origin": "https://www.lottecinema.co.kr",
+    "Cookie": REAL_COOKIE,
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
+};
 
 const TARGET_KEYWORDS = ["포스터", "특전", "아트카드", "현장", "시그니처", "무비", "증정", "T.T", "아카데미", "Signature"];
 
@@ -27,8 +37,8 @@ async function fetchEventList() {
     const paramList = {
         MethodName: "GetEventLists",
         channelType: "HO",
-        osType: "W",
-        osVersion: "Mozilla/5.0",
+        osType: "Android", // W에서 Android로 변경
+        osVersion: "13",
         EventClassificationCode: "20",
         SearchText: "", 
         CinemaID: "",
@@ -46,10 +56,8 @@ async function fetchEventList() {
             body: formData,
             headers: {
                 ...formData.getHeaders(),
-                Referer: "https://www.lottecinema.co.kr/NLCHS/Event/DetailList?code=20",
-                Origin: "https://www.lottecinema.co.kr",
-                "User-Agent": "Mozilla/5.0",
-                Host: "www.lottecinema.co.kr",
+                ...APP_HEADERS,
+                Referer: "https://www.lottecinema.co.kr/NLCHS/Event/DetailList?code=20"
             }
         });
         const data = await res.json();
@@ -66,7 +74,7 @@ async function fetchEventList() {
 
 app.post('/api/scan', async (req, res) => {
     const { baseGiftID, range } = req.body;
-    console.log(`📡 스캔 요청: BaseID ${baseGiftID}, Range ${range}`);
+    console.log(`📡 앱 헤더 스캔 요청: BaseID ${baseGiftID}, Range ${range}`);
     
     try {
         const events = await fetchEventList();
@@ -74,13 +82,14 @@ app.post('/api/scan', async (req, res) => {
 
         for (const event of events) {
             const promises = [];
+            // 서버 부하를 줄이기 위해 범위를 너무 크게 잡지 않는 것을 추천합니다.
             for (let i = -range; i <= range; i++) {
                 const testGiftID = (parseInt(baseGiftID) + i).toString();
                 const paramList = {
                     MethodName: "GetCinemaGoods",
                     channelType: "HO",
-                    osType: "W",
-                    osVersion: "Mozilla/5.0",
+                    osType: "Android",
+                    osVersion: "13",
                     EventID: event.EventID.toString(),
                     GiftID: testGiftID
                 };
@@ -93,13 +102,14 @@ app.post('/api/scan', async (req, res) => {
                     body: formData,
                     headers: {
                         ...formData.getHeaders(),
-                        Referer: `https://www.lottecinema.co.kr/NLCHS/Event/EventTemplateInfo?eventId=${event.EventID}`,
-                        "User-Agent": "Mozilla/5.0",
+                        ...APP_HEADERS,
+                        Referer: `https://www.lottecinema.co.kr/NLCHS/Event/EventTemplateInfo?eventId=${event.EventID}`
                     }
                 })
                 .then(r => r.json())
                 .then(d => {
-                    if (d.CinemaDivisionGoods && d.CinemaDivisionGoods.length > 0) {
+                    // Cnt가 0보다 큰 데이터가 하나라도 있는지 확인 (앱 헤더 덕분에 이제 0이 아님)
+                    if (d.CinemaDivisionGoods && d.CinemaDivisionGoods.some(c => c.Cnt > 0)) {
                         return { giftID: testGiftID, stock: d.CinemaDivisionGoods };
                     }
                     return null;
@@ -133,8 +143,5 @@ app.post('/api/scan', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다.`);
+    console.log(`🚀 앱 버전 서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
-
-
-
